@@ -1,21 +1,27 @@
-name: TypeScript Action Template
-description: Template for building JavaScript GitHub Actions with TypeScript + ncc.
-author: Appegy
-
+name: 'Verify Android Keystore'
+description: 'Verifies the validity of an Android Keystore file, its password, and a specific key alias.'
+author: 'Appegy'
 branding:
-  icon: package
-  color: blue
+  icon: 'shield'
+  color: 'green'
 
 inputs:
-  example-input:
-    description: Example input (placeholder).
+  keystore-path:
+    description: 'Path to the keystore file. Required if keystore-base64 is not provided.'
     required: false
-    default: world
-
-outputs:
-  example-output:
-    description: Example output (placeholder).
+  keystore-base64:
+    description: 'Base64 encoded content of the keystore. Required if keystore-path is not provided.'
+    required: false
+  keystore-password:
+    description: 'Password for the keystore.'
+    required: true
+  alias-name:
+    description: 'Alias name to verify.'
+    required: true
+  alias-password:
+    description: 'Password for the alias.'
+    required: true
 
 runs:
-  using: node24
-  main: dist/index.js
+  using: 'node24'
+  main: 'dist/index.js'
