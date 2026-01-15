@@ -27068,14 +27068,13 @@ async function run() {
         // 5. Verify Alias Password
         console.log(`Test 3: Checking Password for Alias '${aliasName}'...`);
         try {
-            // To verify the key password, we attempt to change it to ITSELF.
-            // keytool -keypasswd -alias <alias> -keypass <old> -new <new> -keystore <store> -storepass <storepass>
-            // If old password is correct, this succeeds.
+            // To verify the key password, we attempt to generate a Certificate Signing Request (CSR).
+            // This operation requires the private key password to access the key.
+            // It is non-destructive (we just discard the output).
             await exec.exec('keytool', [
-                '-keypasswd',
+                '-certreq',
                 '-alias', aliasName,
                 '-keypass', aliasPassword,
-                '-new', aliasPassword,
                 '-keystore', keystorePath,
                 '-storepass', keystorePassword
             ], {
@@ -27085,6 +27084,9 @@ async function run() {
         }
         catch (error) {
             console.error(`❌ ALIAS PASSWORD ERROR for '${aliasName}'.`);
+            console.error('Possible reasons:');
+            console.error('1. The secret alias-password contains a typo.');
+            console.error('2. The alias is not a PrivateKeyEntry (it might be just a certificate).');
             throw new Error(`Alias password verification failed: ${error.message}`);
         }
         console.log('----------------------------------------');
