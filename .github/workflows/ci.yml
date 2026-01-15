@@ -34,6 +34,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Generate Test Keystore
+        id: test_data
         run: |
           keytool -genkeypair \
             -alias test_alias \
@@ -46,11 +47,11 @@ jobs:
             -dname "CN=Test, OU=Test, O=Test, L=Test, S=Test, C=US"
           
           # Create Base64 version
-          base64 debug.keystore -w 0 > debug.keystore.base64
-          echo "KEYSTORE_BASE64=$(cat debug.keystore.base64)" >> $GITHUB_ENV
+          # Using -w 0 to ensure no newlines on Linux
+          echo "KEYSTORE_BASE64=$(base64 debug.keystore -w 0)" >> "$GITHUB_OUTPUT"
 
       - name: 'Test 1: Using File Path'
-        uses: ./ # Uses the action from the current directory
+        uses: ./
         with:
           keystore-path: './debug.keystore'
           keystore-password: 'password123'
@@ -60,7 +61,7 @@ jobs:
       - name: 'Test 2: Using Base64 Input'
         uses: ./
         with:
-          keystore-base64: ${{ env.KEYSTORE_BASE64 }}
+          keystore-base64: ${{ steps.test_data.outputs.KEYSTORE_BASE64 }}
           keystore-password: 'password123'
           alias-name: 'test_alias'
           alias-password: 'password123'
