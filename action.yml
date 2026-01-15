@@ -1,0 +1,21 @@
+name: TypeScript Action Template
+description: Template for building JavaScript GitHub Actions with TypeScript + ncc.
+author: Appegy
+
+branding:
+  icon: package
+  color: blue
+
+inputs:
+  example-input:
+    description: Example input (placeholder).
+    required: false
+    default: world
+
+outputs:
+  example-output:
+    description: Example output (placeholder).
+
+runs:
+  using: node24
+  main: dist/index.js

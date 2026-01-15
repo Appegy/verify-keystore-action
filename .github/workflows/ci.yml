@@ -1,0 +1,46 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+  smoke:
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Hello world
+        id: hello
+        uses: ./
+        with:
+          example-input: world
+
+      - name: Assert output
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ steps.hello.outputs.example-output }}" == "hello-world" ]]
