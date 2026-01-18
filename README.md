@@ -114,6 +114,34 @@ keytool -list -v -keystore your-keystore.jks -storepass YOUR_PASSWORD | grep "Ke
 - **Alias not found:** Verify the alias name exists in your keystore
 - **Not a PrivateKeyEntry:** The alias must contain a private key, not just a certificate
 
+## Development
+
+### Running Tests
+
+The CI workflow includes comprehensive tests:
+
+**Positive Tests** (should pass):
+- JKS keystore with file path and base64
+- PKCS12 keystore with matching passwords
+- Different store/key passwords for JKS
+
+**Negative Tests** (should fail):
+- PKCS12 with different passwords  
+- Wrong store password
+- Wrong alias name
+- Wrong key password for JKS
+
+Tests use `continue-on-error: true` with outcome verification to ensure the action correctly fails for invalid credentials.
+
+### Building
+
+```bash
+npm ci
+npm run build
+```
+
+The `dist/` directory must be committed as it contains the bundled action code.
+
 
 
 ## License

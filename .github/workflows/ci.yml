@@ -26,42 +26,142 @@ jobs:
           git status --porcelain
           git diff --exit-code
 
-  smoke:
+  test:
     runs-on: ubuntu-latest
     needs: build
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
-      - name: Generate Test Keystore
-        id: test_data
+      - name: Generate JKS Test Keystore
+        id: test_jks
         run: |
+          # JKS keystore with different store and key passwords
           keytool -genkeypair \
             -alias test_alias \
             -keyalg RSA \
             -keysize 2048 \
             -validity 10000 \
-            -keystore debug.keystore \
+            -keystore debug.jks \
+            -storetype JKS \
+            -storepass "store_password" \
+            -keypass "key_password" \
+            -dname "CN=Test, OU=Test, O=Test, L=Test, S=Test, C=US"
+          
+          echo "KEYSTORE_BASE64=$(base64 debug.jks -w 0)" >> "$GITHUB_OUTPUT"
+
+      - name: Generate PKCS12 Test Keystore
+        id: test_pkcs12
+        run: |
+          # PKCS12 keystore - must have same password for store and key
+          keytool -genkeypair \
+            -alias test_alias \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -keystore debug.p12 \
+            -storetype PKCS12 \
             -storepass "password123" \
             -keypass "password123" \
             -dname "CN=Test, OU=Test, O=Test, L=Test, S=Test, C=US"
           
-          # Create Base64 version
-          # Using -w 0 to ensure no newlines on Linux
-          echo "KEYSTORE_BASE64=$(base64 debug.keystore -w 0)" >> "$GITHUB_OUTPUT"
+          echo "KEYSTORE_BASE64=$(base64 debug.p12 -w 0)" >> "$GITHUB_OUTPUT"
 
-      - name: 'Test 1: Using File Path'
+      - name: '✅ Test 1: JKS with File Path'
         uses: ./
         with:
-          keystore-path: './debug.keystore'
+          keystore-path: './debug.jks'
+          keystore-password: 'store_password'
+          alias-name: 'test_alias'
+          alias-password: 'key_password'
+
+      - name: '✅ Test 2: JKS with Base64 Input'
+        uses: ./
+        with:
+          keystore-base64: ${{ steps.test_jks.outputs.KEYSTORE_BASE64 }}
+          keystore-password: 'store_password'
+          alias-name: 'test_alias'
+          alias-password: 'key_password'
+
+      - name: '✅ Test 3: PKCS12 with Matching Passwords'
+        uses: ./
+        with:
+          keystore-path: './debug.p12'
           keystore-password: 'password123'
           alias-name: 'test_alias'
           alias-password: 'password123'
 
-      - name: 'Test 2: Using Base64 Input'
+      - name: '✅ Test 4: PKCS12 with Base64'
         uses: ./
         with:
-          keystore-base64: ${{ steps.test_data.outputs.KEYSTORE_BASE64 }}
+          keystore-base64: ${{ steps.test_pkcs12.outputs.KEYSTORE_BASE64 }}
           keystore-password: 'password123'
           alias-name: 'test_alias'
           alias-password: 'password123'
+
+      - name: '❌ Test 5: PKCS12 with Different Passwords (should fail)'
+        id: test_pkcs12_different_passwords
+        continue-on-error: true
+        uses: ./
+        with:
+          keystore-path: './debug.p12'
+          keystore-password: 'password123'
+          alias-name: 'test_alias'
+          alias-password: 'wrong_password'
+
+      - name: Verify Test 5 Failed as Expected
+        if: steps.test_pkcs12_different_passwords.outcome != 'failure'
+        run: |
+          echo "::error::Test 5 should have failed but it passed!"
+          exit 1
+
+      - name: '❌ Test 6: Wrong Store Password (should fail)'
+        id: test_wrong_store_password
+        continue-on-error: true
+        uses: ./
+        with:
+          keystore-path: './debug.jks'
+          keystore-password: 'wrong_password'
+          alias-name: 'test_alias'
+          alias-password: 'key_password'
+
+      - name: Verify Test 6 Failed as Expected
+        if: steps.test_wrong_store_password.outcome != 'failure'
+        run: |
+          echo "::error::Test 6 should have failed but it passed!"
+          exit 1
+
+      - name: '❌ Test 7: Wrong Alias Name (should fail)'
+        id: test_wrong_alias
+        continue-on-error: true
+        uses: ./
+        with:
+          keystore-path: './debug.jks'
+          keystore-password: 'store_password'
+          alias-name: 'nonexistent_alias'
+          alias-password: 'key_password'
+
+      - name: Verify Test 7 Failed as Expected
+        if: steps.test_wrong_alias.outcome != 'failure'
+        run: |
+          echo "::error::Test 7 should have failed but it passed!"
+          exit 1
+
+      - name: '❌ Test 8: JKS Wrong Key Password (should fail)'
+        id: test_wrong_key_password
+        continue-on-error: true
+        uses: ./
+        with:
+          keystore-path: './debug.jks'
+          keystore-password: 'store_password'
+          alias-name: 'test_alias'
+          alias-password: 'wrong_key_password'
+
+      - name: Verify Test 8 Failed as Expected
+        if: steps.test_wrong_key_password.outcome != 'failure'
+        run: |
+          echo "::error::Test 8 should have failed but it passed!"
+          exit 1
+
+      - name: '🎉 All Tests Passed'
+        run: echo "All positive and negative tests completed successfully!"
