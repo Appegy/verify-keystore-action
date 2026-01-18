@@ -67,6 +67,23 @@ jobs:
           
           echo "KEYSTORE_BASE64=$(base64 debug.p12 -w 0)" >> "$GITHUB_OUTPUT"
 
+      - name: Generate JKS with Same Passwords
+        id: test_jks_same
+        run: |
+          # JKS keystore where key password = store password
+          # User might mistakenly provide different passwords
+          keytool -genkeypair \
+            -alias test_alias \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -keystore same_pass.jks \
+            -storetype JKS \
+            -storepass "same_password" \
+            -keypass "same_password" \
+            -dname "CN=Test, OU=Test, O=Test, L=Test, S=Test, C=US"
+
+
       - name: '✅ Test 1: JKS with File Path'
         uses: ./
         with:
@@ -162,6 +179,23 @@ jobs:
         run: |
           echo "::error::Test 8 should have failed but it passed!"
           exit 1
+
+      - name: '❌ Test 9: JKS with Same Passwords but User Provides Different (should fail)'
+        id: test_jks_same_pass_mismatch
+        continue-on-error: true
+        uses: ./
+        with:
+          keystore-path: './same_pass.jks'
+          keystore-password: 'same_password'
+          alias-name: 'test_alias'
+          alias-password: 'wrong_password'
+
+      - name: Verify Test 9 Failed as Expected
+        if: steps.test_jks_same_pass_mismatch.outcome != 'failure'
+        run: |
+          echo "::error::Test 9 should have failed but it passed!"
+          exit 1
+
 
       - name: '🎉 All Tests Passed'
         run: echo "All positive and negative tests completed successfully!"
