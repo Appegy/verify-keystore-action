@@ -3,10 +3,11 @@
 A GitHub Action to verify the validity of an Android Keystore file, its password, and a specific key alias. This action is designed to "fail fast" in your CI/CD pipeline if your signing secrets are incorrect.
 
 ## Features
+- ✅ Detects keystore type (PKCS12, JKS, etc.)
 - ✅ Verifies Keystore file existence (from path or Base64 secret).
 - ✅ Verifies Keystore password.
 - ✅ Verifies Alias existence.
-- ✅ Verifies Alias password.
+- ✅ Verifies Alias password (with PKCS12-aware validation to prevent false positives).
 
 ## Usage
 
@@ -57,6 +58,63 @@ If you already have the keystore file on disk (e.g., checked out or downloaded):
           alias-name: ${{ secrets.ANDROID_KEYALIAS_NAME }}
           alias-password: ${{ secrets.ANDROID_KEYALIAS_PASS }}
 ```
+
+## Keystore Types: PKCS12 vs JKS
+
+This action automatically detects your keystore type and applies appropriate validation.
+
+### PKCS12 Keystores
+
+**Important:** PKCS12 keystores **require identical passwords** for both the keystore and the key alias.
+
+If your `keystore-password` and `alias-password` are different, the action will **fail** with a clear error message. This matches the behavior of Android Gradle Plugin (AGP) during actual signing.
+
+#### Why This Matters
+
+The Java `keytool` utility silently ignores the `-keypass` parameter for PKCS12 keystores, which can lead to false positives in verification. This action now correctly validates that:
+1. Both passwords are identical
+2. The private key can actually be decrypted and accessed
+
+#### Migration to JKS (if needed)
+
+If you need separate passwords for store and key, convert your keystore to JKS format:
+
+```bash
+keytool -importkeystore \
+  -srckeystore your-keystore.p12 \
+  -srcstoretype PKCS12 \
+  -destkeystore your-keystore.jks \
+  -deststoretype JKS
+```
+
+### JKS Keystores
+
+JKS keystores support different passwords for the keystore and individual key aliases. The action validates both independently.
+
+## Troubleshooting
+
+### Error: "PKCS12 keystores do not support different store and key passwords"
+
+**Cause:** Your `keystore-password` and `alias-password` secrets have different values, but your keystore is PKCS12 format.
+
+**Solution:**
+1. **Option A:** Update your GitHub secrets so both passwords are identical (use the correct password for your PKCS12 keystore)
+2. **Option B:** Convert your keystore to JKS format (see migration command above)
+
+### How to Check Your Keystore Type
+
+```bash
+keytool -list -v -keystore your-keystore.jks -storepass YOUR_PASSWORD | grep "Keystore type"
+```
+
+### Common Issues
+
+- **Wrong password:** Double-check your GitHub secrets for typos
+- **Different passwords for PKCS12:** Use the same password for both `keystore-password` and `alias-password`
+- **Alias not found:** Verify the alias name exists in your keystore
+- **Not a PrivateKeyEntry:** The alias must contain a private key, not just a certificate
+
+
 
 ## License
 MIT
