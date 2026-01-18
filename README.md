@@ -13,13 +13,13 @@ A GitHub Action to verify the validity of an Android Keystore file, its password
 
 ### Inputs
 
-| Input | Description | Required | Satus |
+| Input | Description | Required | Status |
 |---|---|---|---|
 | `keystore-path` | Path to the `.keystore` or `.jks` file. | No* | One of `path` or `base64` is required. |
 | `keystore-base64` | Base64 encoded content of the keystore file. | No* | One of `path` or `base64` is required. |
 | `keystore-password` | Password for the keystore. | **Yes** | |
 | `alias-name` | Alias name to verify. | **Yes** | |
-| `alias-password` | Password for the specific alias key. | **Yes** | |
+| `alias-password` | Password for the alias. | **Yes** | For PKCS12, must match `keystore-password`. |
 
 ### Example Workflow
 
@@ -44,6 +44,11 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew assembleRelease
 ```
+
+> [!NOTE]
+> For **PKCS12** keystores, `keystore-password` and `alias-password` must be **identical**. Use the same secret for both.
+>
+> For **JKS** keystores, passwords can be the same or different.
 
 ### Using a File Path
 
